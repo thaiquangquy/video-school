@@ -2,6 +2,11 @@ import Link from "next/link";
 import { getAllLessons, getContinueLearning } from "@/lib/lessons";
 import { LessonCard } from "@/components/LessonCard";
 
+// Reads live watch-progress state on every request — never statically
+// prerender (the DB also doesn't exist yet at `next build` time; schema
+// init happens in instrumentation.ts when the server actually starts).
+export const dynamic = "force-dynamic";
+
 const UP_NEXT_FETCH_COUNT = 4;
 
 export default async function Home() {

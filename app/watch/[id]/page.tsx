@@ -2,6 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLessonById } from "@/lib/lessons";
 import { VideoPlayer } from "@/components/VideoPlayer";
+import { ResetProgressButton } from "@/components/ResetProgressButton";
+
+export const dynamic = "force-dynamic";
 
 export default async function WatchPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -21,6 +24,7 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
         {lesson.subject}
       </p>
       <VideoPlayer lesson={lesson} />
+      {lesson.progress.status !== "not_started" && <ResetProgressButton lessonId={lesson.id} />}
     </div>
   );
 }

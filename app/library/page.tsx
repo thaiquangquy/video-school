@@ -1,6 +1,8 @@
 import { getAllLessons, type LessonWithProgress } from "@/lib/lessons";
 import { LessonCard } from "@/components/LessonCard";
 
+export const dynamic = "force-dynamic";
+
 function groupBySubject(lessons: LessonWithProgress[]): Map<string, LessonWithProgress[]> {
   const bySubject = new Map<string, LessonWithProgress[]>();
   for (const lesson of lessons) {

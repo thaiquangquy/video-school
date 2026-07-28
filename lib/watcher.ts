@@ -24,6 +24,18 @@ function getUnmatchedLessons(): MatchCandidateLesson[] {
   return rows;
 }
 
+/**
+ * Finds the lesson (if any) whose local_path already resolves to this exact
+ * file, regardless of whether that path is stored relative (manifest) or
+ * absolute (auto_matched).
+ */
+function findLessonByResolvedPath(filePath: string): { id: string } | undefined {
+  const rows = db
+    .prepare("SELECT id, local_path FROM lessons WHERE local_path IS NOT NULL AND archived = 0")
+    .all() as { id: string; local_path: string }[];
+  return rows.find((row) => resolveLocalPath(row.local_path) === filePath);
+}
+
 // Prepared lazily (not at module load) since this module can be imported
 // before initSchema() has created the tables — see instrumentation.ts.
 function setLocalPath(filePath: string, lessonId: string): void {
@@ -40,6 +52,10 @@ function clearLocalPath(lessonId: string): void {
 /** Handles a newly-seen video file: matches it to an unmatched lesson, or logs it as unmatched. */
 export function handleNewVideoFile(filePath: string): void {
   if (!isVideoFile(filePath)) return;
+
+  // Already linked (typically via the manifest's localPath) — nothing to
+  // match, and logging it as "unmatched" would be misleading.
+  if (findLessonByResolvedPath(filePath)) return;
 
   const filename = path.basename(filePath);
   const normalizedFilename = normalize(stripExtension(filename));
@@ -73,9 +89,7 @@ export function handleNewVideoFile(filePath: string): void {
 
 /** Clears a lesson's local_path if the file it points to no longer exists on disk. */
 export function handleRemovedVideoFile(filePath: string): void {
-  const row = db.prepare("SELECT id, local_path FROM lessons WHERE local_path = ?").get(filePath) as
-    | { id: string; local_path: string }
-    | undefined;
+  const row = findLessonByResolvedPath(filePath);
 
   if (!row) return;
 

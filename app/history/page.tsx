@@ -1,6 +1,8 @@
 import { getHistory, getHistorySummary } from "@/lib/lessons";
 import { HistoryList } from "@/components/HistoryList";
 
+export const dynamic = "force-dynamic";
+
 const PAGE_SIZE = 20;
 
 function formatWatchTime(seconds: number): string {
