@@ -61,6 +61,26 @@ Drop downloaded video files into `data/videos/`. A background watcher matches ne
 
 If a lesson's linked video file is later moved or deleted, its `localPath` is automatically cleared (also logged) and the app falls back to `driveUrl` if one is set.
 
+## API
+
+| Endpoint                             | Method | Notes                                                                                     |
+|---------------------------------------|--------|---------------------------------------------------------------------------------------------|
+| `/api/lessons`                        | GET    | All lessons with their current watch_progress joined in.                                  |
+| `/api/lessons/:id`                    | GET    | Single lesson detail + progress.                                                          |
+| `/api/lessons/:id/video`              | GET    | Streams the local file with HTTP Range support if `localPath` is set; otherwise returns `{ source: "drive", driveUrl }` for the frontend to embed directly. |
+| `/api/lessons/:id/progress`           | POST   | `{ positionSeconds, durationSeconds, source }`. Upserts watch_progress, flips to `completed` at ≥95% duration, appends/extends a watch_events session row. |
+| `/api/lessons/:id/mark-status`        | POST   | `{ status }`. Manual override, mainly for Drive-sourced lessons where progress can't be auto-detected. |
+| `/api/continue-learning`              | GET    | The most-recently-watched `in_progress` lesson (never `completed`), plus 2-3 "up next" suggestions by manifest order. |
+| `/api/history`                        | GET    | `?limit=20&offset=0`. watch_events joined with lesson title/subject, most recent first.   |
+
+## Testing
+
+```bash
+npm run test
+```
+
+Covers the progress-upsert status logic (completion threshold, the "never downgrade from completed" rule) and the HTTP Range-header parsing used by the video streaming route.
+
 ## Status
 
-Being built incrementally, following the build plan. Done so far: project scaffold, health-check endpoint, manifest + SQLite schema + startup sync, folder watcher with filename auto-matching, PWA support (installable on iPad). Feature work (video streaming, player, pages) comes next.
+Being built incrementally, following the build plan. Done so far: project scaffold, health-check endpoint, manifest + SQLite schema + startup sync, folder watcher with filename auto-matching, PWA support (installable on iPad), lessons/progress API with range-request video streaming. Feature work (video player, pages) comes next.
