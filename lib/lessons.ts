@@ -314,3 +314,44 @@ export function getHistory(
 
   return { items, total: count };
 }
+
+export type HistorySummary = {
+  completedCount: number;
+  distinctLessonsTouched: number;
+  watchTimeThisWeekSeconds: number;
+};
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** Stats for the History page's summary strip. "This week" = the last 7 days, not calendar week. */
+export function getHistorySummary(database: Database.Database = db): HistorySummary {
+  const { completedCount } = database
+    .prepare(
+      `SELECT COUNT(*) AS completedCount
+       FROM watch_progress p
+       JOIN lessons l ON l.id = p.lesson_id
+       WHERE l.archived = 0 AND p.status = 'completed'`,
+    )
+    .get() as { completedCount: number };
+
+  const { distinctLessonsTouched } = database
+    .prepare(
+      `SELECT COUNT(*) AS distinctLessonsTouched
+       FROM watch_progress p
+       JOIN lessons l ON l.id = p.lesson_id
+       WHERE l.archived = 0 AND p.status != 'not_started'`,
+    )
+    .get() as { distinctLessonsTouched: number };
+
+  const sevenDaysAgo = new Date(Date.now() - WEEK_MS).toISOString();
+  const { watchTimeThisWeekSeconds } = database
+    .prepare(
+      `SELECT COALESCE(SUM((julianday(e.ended_at) - julianday(e.started_at)) * 86400), 0) AS watchTimeThisWeekSeconds
+       FROM watch_events e
+       JOIN lessons l ON l.id = e.lesson_id
+       WHERE l.archived = 0 AND e.started_at >= ?`,
+    )
+    .get(sevenDaysAgo) as { watchTimeThisWeekSeconds: number };
+
+  return { completedCount, distinctLessonsTouched, watchTimeThisWeekSeconds };
+}

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getHistory } from "@/lib/lessons";
+import { getHistory, getHistorySummary } from "@/lib/lessons";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -14,5 +14,7 @@ export async function GET(request: Request) {
   const offset = Number.isFinite(offsetParam) && offsetParam >= 0 ? offsetParam : 0;
 
   const result = getHistory(limit, offset);
-  return NextResponse.json({ ...result, limit, offset });
+  const summary = offset === 0 ? getHistorySummary() : undefined;
+
+  return NextResponse.json({ ...result, limit, offset, summary });
 }
