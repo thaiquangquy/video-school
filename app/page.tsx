@@ -1,37 +1,79 @@
-"use client";
+import Link from "next/link";
+import { getAllLessons, getContinueLearning } from "@/lib/lessons";
+import { LessonCard } from "@/components/LessonCard";
 
-import { useEffect, useState } from "react";
+const UP_NEXT_FETCH_COUNT = 4;
 
-type HealthResponse = {
-  status: string;
-  timestamp: string;
-};
+export default async function Home() {
+  const allLessons = getAllLessons();
+  const { continueLearning, upNext } = getContinueLearning(undefined, UP_NEXT_FETCH_COUNT);
 
-export default function Home() {
-  const [health, setHealth] = useState<HealthResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const startHere = !continueLearning ? (upNext[0] ?? null) : null;
+  const upNextDisplay = continueLearning ? upNext.slice(0, 3) : upNext.slice(1, 4);
 
-  useEffect(() => {
-    fetch("/api/health")
-      .then((res) => {
-        if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-        return res.json();
-      })
-      .then((data: HealthResponse) => setHealth(data))
-      .catch((err: Error) => setError(err.message));
-  }, []);
+  const percent =
+    continueLearning?.progress.durationSeconds && continueLearning.progress.durationSeconds > 0
+      ? Math.min(
+          100,
+          Math.round((continueLearning.progress.positionSeconds / continueLearning.progress.durationSeconds) * 100),
+        )
+      : null;
 
   return (
-    <div className="card">
-      <h1>Homeschool Video Tracker</h1>
-      <p className="muted">Placeholder home page — feature pages come in later steps.</p>
-      <h2 style={{ marginTop: 20, fontSize: "1rem" }}>API health check</h2>
-      {error && <p style={{ color: "#dc2626" }}>Error: {error}</p>}
-      {!error && !health && <p className="muted">Checking…</p>}
-      {health && (
-        <pre style={{ background: "var(--bg-subtle)", padding: 12, borderRadius: 8 }}>
-          {JSON.stringify(health, null, 2)}
-        </pre>
+    <div>
+      {continueLearning ? (
+        <div className="card" style={{ padding: 28 }}>
+          <div className="muted" style={{ fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 10 }}>
+            Continue Learning
+          </div>
+          <h1 style={{ fontSize: "1.6rem", marginBottom: 4 }}>{continueLearning.title}</h1>
+          <p className="muted" style={{ marginBottom: 18 }}>
+            {continueLearning.subject}
+          </p>
+          {percent !== null && (
+            <div style={{ marginBottom: 18, maxWidth: 320 }}>
+              <div className="progress-track">
+                <div className="progress-fill" style={{ width: `${percent}%` }} />
+              </div>
+              <div className="muted" style={{ fontSize: "0.8rem", marginTop: 6 }}>
+                {percent}% watched
+              </div>
+            </div>
+          )}
+          <Link href={`/watch/${continueLearning.id}`} className="btn btn-primary">
+            Resume
+          </Link>
+        </div>
+      ) : startHere ? (
+        <div className="card" style={{ padding: 28 }}>
+          <div className="muted" style={{ fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 10 }}>
+            Start Here
+          </div>
+          <h1 style={{ fontSize: "1.6rem", marginBottom: 4 }}>{startHere.title}</h1>
+          <p className="muted" style={{ marginBottom: 18 }}>
+            {startHere.subject}
+          </p>
+          <Link href={`/watch/${startHere.id}`} className="btn btn-primary">
+            Start Watching
+          </Link>
+        </div>
+      ) : (
+        <div className="card empty-state">
+          {allLessons.length === 0
+            ? "No lessons yet — add some to data/lessons.yaml to get started."
+            : "All caught up! Every lesson has been completed."}
+        </div>
+      )}
+
+      {upNextDisplay.length > 0 && (
+        <>
+          <div className="section-title">Up Next</div>
+          <div className="grid grid-3">
+            {upNextDisplay.map((lesson) => (
+              <LessonCard key={lesson.id} lesson={lesson} />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

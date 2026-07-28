@@ -115,6 +115,16 @@ a {
   padding: 18px;
 }
 
+.lesson-card {
+  display: block;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.lesson-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
 .grid {
   display: grid;
   gap: 16px;
