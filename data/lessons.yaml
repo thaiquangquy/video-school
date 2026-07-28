@@ -1,0 +1,63 @@
+# Homeschool Video Tracker — lesson manifest
+#
+# This file is the source of truth for lesson CONTENT (titles, subjects, tags,
+# ordering, video sources). Watch progress and history live in the database,
+# not here — this file never gets written to by the app itself, except that
+# `localPath` may be filled in for you by the folder watcher once you drop a
+# matching video file into data/videos/ (see README for naming rules).
+#
+# Fields per lesson:
+#   id         (required) Stable string id you assign, e.g. "math-fractions-01".
+#              Never change this once you've started tracking watch history for
+#              a lesson — the DB keys everything off it.
+#   title      (required) Display title shown in the UI.
+#   subject    (required) Grouping used on the Library page, e.g. "Math", "Reading".
+#   tags       (optional) List of free-form tags, e.g. [phonics, review].
+#   localPath  (optional) Path to the video file, relative to data/videos/
+#              (or an absolute path). Leave this out if you haven't downloaded
+#              the file yet — the folder watcher will fill it in automatically
+#              once a matching file appears in data/videos/. Name your video
+#              files after the lesson `id` for reliable auto-matching.
+#   driveUrl   (optional) A Google Drive share link or bare file id, used as a
+#              fallback (or primary source) until/unless a local file exists.
+#   order      (required) Integer used to sort lessons within a subject group.
+#
+# A lesson needs at least one of localPath / driveUrl to be watchable; a lesson
+# with neither shows up in the Library as "no video source configured."
+
+- id: math-counting-01
+  title: "Counting to 20"
+  subject: Math
+  tags: [numbers, beginner]
+  # localPath left out on purpose — drop a file named "math-counting-01.mp4"
+  # (or similar) into data/videos/ and the watcher will link it automatically.
+  driveUrl: "https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz123456/view?usp=sharing"
+  order: 1
+
+- id: math-fractions-01
+  title: "Introduction to Fractions"
+  subject: Math
+  tags: [fractions]
+  localPath: "math-fractions-01.mp4"
+  order: 2
+
+- id: reading-phonics-01
+  title: "Short Vowel Sounds"
+  subject: Reading
+  tags: [phonics, beginner]
+  driveUrl: "1QwErTyUiOpAsDfGhJkLzXcVbNm098765"
+  order: 1
+
+- id: reading-comprehension-01
+  title: "Finding the Main Idea"
+  subject: Reading
+  tags: [comprehension]
+  localPath: "reading-comprehension-01.mp4"
+  order: 2
+
+- id: science-plants-01
+  title: "How Plants Grow"
+  subject: Science
+  tags: [biology, nature]
+  driveUrl: "https://drive.google.com/file/d/1ZzYyXxWwVvUuTtSsRrQqPpOo112233/view"
+  order: 1
