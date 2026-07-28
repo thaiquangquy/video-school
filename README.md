@@ -53,6 +53,14 @@ A lesson needs at least one of `localPath` / `driveUrl` to be watchable.
 
 To add a new lesson: add an entry to `data/lessons.yaml` and restart the server (or wait for the next scheduled sync) — it'll be picked up and given a `not_started` watch_progress row automatically. Removing an entry from the manifest doesn't delete its watch history; the lesson is archived (kept in the DB, hidden from the UI) so history stays intact if you ever re-add it.
 
+## Adding video files (auto-matching)
+
+Drop downloaded video files into `data/videos/`. A background watcher matches new files to lessons that don't have a `localPath` yet, and fills it in for you — no manifest edit needed, and no server restart needed (it picks up files dropped in while the server is running, and also does a full scan on startup so files added while the server was down get picked up too).
+
+**Name your video file after the lesson `id`** for a reliable match (e.g. `math-fractions-01.mp4` for lesson id `math-fractions-01`). Matching is normalized (case-insensitive, punctuation/spacing collapsed), so `Math - Fractions 01.mp4` also matches. If no lesson id matches, it'll try matching against the lesson's `title` instead. If a file doesn't match anything, it's left alone and a warning is logged to the server console with the filename — check there if a file doesn't seem to be linking up, rather than the app guessing wrong and mislinking two lessons.
+
+If a lesson's linked video file is later moved or deleted, its `localPath` is automatically cleared (also logged) and the app falls back to `driveUrl` if one is set.
+
 ## Status
 
-Being built incrementally. Done so far: project scaffold, health-check endpoint, manifest + SQLite schema + startup sync. Feature work (video streaming, player, pages) comes next.
+Being built incrementally, following the build plan. Done so far: project scaffold, health-check endpoint, manifest + SQLite schema + startup sync, folder watcher with filename auto-matching, PWA support (installable on iPad). Feature work (video streaming, player, pages) comes next.

@@ -7,6 +7,7 @@ export async function register() {
 
   const { initSchema } = await import("./lib/db");
   const { syncLessonsFromManifest } = await import("./lib/sync");
+  const { startVideoWatcher } = await import("./lib/watcher");
 
   initSchema();
   const result = syncLessonsFromManifest();
@@ -14,4 +15,6 @@ export async function register() {
     `[startup] Synced ${result.synced} lesson(s) from manifest` +
       (result.archived > 0 ? `, archived ${result.archived} removed from manifest` : ""),
   );
+
+  startVideoWatcher();
 }
