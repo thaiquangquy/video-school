@@ -1,6 +1,6 @@
 # Homeschool Video Tracker
 
-A local-only web app for tracking homeschool video lesson progress: what's been watched, how far into each video, and lets you resume where you left off. Runs on your machine only — no internet-facing deployment, no auth.
+A local-only web app for tracking homeschool video lesson progress: what's been watched, how far into each video, and lets you resume where you left off. Runs on your home network only — no auth, no internet-facing deployment.
 
 Built with Next.js (App Router, TypeScript) and SQLite (`better-sqlite3`).
 
@@ -11,9 +11,13 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The dev server binds to `localhost` only (not `0.0.0.0`), so it's not reachable from other devices on your network.
+Open [http://localhost:3000](http://localhost:3000) on the machine running the server. The dev server binds to `0.0.0.0`, so it's also reachable from other devices on the same WiFi network — e.g. an iPad — at `http://<your-mac's-lan-ip>:3000` (find the IP with `ipconfig getifaddr en0` on macOS). It is **not** reachable from the internet, only from devices on your local network.
 
-`npm run build && npm run start` runs the same app in production mode, also bound to `localhost:3000`.
+`npm run build && npm run start` runs the same app in production mode, same binding.
+
+### Using it on an iPad (PWA)
+
+This app is installable as a Progressive Web App. On the iPad, open `http://<your-mac's-lan-ip>:3000` in Safari, tap the Share icon, then "Add to Home Screen." It'll launch full-screen like a native app, with its own icon.
 
 ## Project layout
 
