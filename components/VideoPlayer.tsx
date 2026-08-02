@@ -31,9 +31,10 @@ function badgeClass(status: WatchStatus): string {
 
 type Props = {
   lesson: LessonWithProgress;
+  driveFolderUrl?: string | null;
 };
 
-export function VideoPlayer({ lesson }: Props) {
+export function VideoPlayer({ lesson, driveFolderUrl }: Props) {
   const [progress, setProgress] = useState(lesson.progress);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const lastSentAtRef = useRef(0);
@@ -163,7 +164,18 @@ export function VideoPlayer({ lesson }: Props) {
           </div>
         </div>
       ) : (
-        <div className="card empty-state">No video source configured for this lesson.</div>
+        <div className="card empty-state">
+          <p>No video source configured for this lesson.</p>
+          {driveFolderUrl && (
+            <p style={{ marginTop: 8, fontSize: "0.85rem" }}>
+              <a href={driveFolderUrl} target="_blank" rel="noopener noreferrer">
+                Browse the source folder on Google Drive
+              </a>{" "}
+              — copy the file&apos;s share link and add it as this lesson&apos;s <code>driveUrl</code> in{" "}
+              <code>data/lessons.yaml</code>.
+            </p>
+          )}
+        </div>
       )}
 
       {(lesson.localPath || lesson.driveUrl) && (

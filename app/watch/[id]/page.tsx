@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLessonById } from "@/lib/lessons";
+import { readConfig } from "@/lib/config";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { ResetProgressButton } from "@/components/ResetProgressButton";
 
@@ -14,6 +15,8 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
     notFound();
   }
 
+  const { driveFolderUrl } = readConfig();
+
   return (
     <div>
       <Link href="/library" className="muted" style={{ fontSize: "0.85rem" }}>
@@ -23,7 +26,7 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
       <p className="muted" style={{ marginBottom: 20 }}>
         {lesson.subject}
       </p>
-      <VideoPlayer lesson={lesson} />
+      <VideoPlayer lesson={lesson} driveFolderUrl={driveFolderUrl} />
       {lesson.progress.status !== "not_started" && <ResetProgressButton lessonId={lesson.id} />}
     </div>
   );

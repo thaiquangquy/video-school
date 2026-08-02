@@ -2,9 +2,19 @@ import path from "node:path";
 import fs from "node:fs";
 import chokidar, { type FSWatcher } from "chokidar";
 import { db } from "./db";
+import { readConfig } from "./config";
 import { matchFileToLesson, normalize, stripExtension, type MatchCandidateLesson } from "./videoMatch";
 
-export const VIDEOS_DIR = path.join(process.cwd(), "data", "videos");
+function resolveVideosDir(): string {
+  const { videosDir } = readConfig();
+  if (!videosDir) return path.join(process.cwd(), "data", "videos");
+  return path.isAbsolute(videosDir) ? videosDir : path.join(process.cwd(), videosDir);
+}
+
+// Resolved once per process from data/config.yaml's `videosDir` (falls back
+// to data/videos/ if unset) — not re-read per request, matching the previous
+// hardcoded-constant behavior/cost.
+export const VIDEOS_DIR = resolveVideosDir();
 
 const VIDEO_EXTENSIONS = new Set([".mp4", ".mov", ".mkv", ".webm", ".m4v", ".avi"]);
 
@@ -126,10 +136,29 @@ let watcherInstance: FSWatcher | null = null;
  * initial scan of data/videos (covers files dropped in while the server was
  * down) followed by ongoing add/unlink watching.
  */
-export function startVideoWatcher(): FSWatcher {
+export function startVideoWatcher(): FSWatcher | null {
   if (watcherInstance) return watcherInstance;
 
-  fs.mkdirSync(VIDEOS_DIR, { recursive: true });
+  // No-op if VIDEOS_DIR already exists (e.g. an externally-managed folder
+  // like a Google Drive Desktop sync target) — only creates it when it's the
+  // default data/videos/ and hasn't been created yet. A configured videosDir
+  // can point somewhere this process can't create/reach (e.g. a host-only
+  // path baked into data/config.yaml but run inside a container without
+  // that path mounted) — that shouldn't take the whole server down; log and
+  // skip watching instead. pruneMissingLocalFiles() below still runs and
+  // safely clears any local_path that turns out to be unreachable.
+  try {
+    fs.mkdirSync(VIDEOS_DIR, { recursive: true });
+  } catch (err) {
+    console.error(
+      `[watcher] Could not create/access videos directory "${VIDEOS_DIR}" — local video playback and ` +
+        "auto-matching are unavailable until this path is reachable. Underlying error:",
+      err,
+    );
+    pruneMissingLocalFiles();
+    return null;
+  }
+
   pruneMissingLocalFiles();
 
   const watcher = chokidar.watch(VIDEOS_DIR, {

@@ -1,0 +1,17 @@
+# App-level config (not lesson content — that's in lessons.yaml).
+#
+# driveFolderUrl: the Google Drive folder lessons' videos live in until
+# they're downloaded locally. Purely a convenience link shown in the UI for
+# lessons with no video source configured yet — there's no Drive API key
+# configured, so the app can't list the folder's contents automatically.
+# Browse the folder, grab a file's "Share" link, and paste it into that
+# lesson's `driveUrl` in lessons.yaml.
+driveFolderUrl: "https://drive.google.com/drive/folders/11tTJmzxFeoiRLhkV6gDRJ89Uhx6vvJG1"
+
+# videosDir: overrides the default local video base directory (data/videos/).
+# Set this to a Google Drive Desktop sync target to stream files directly
+# from Drive without downloading a separate copy into data/videos/. Lesson
+# manifest `localPath` values (e.g. "3A.mp4") resolve relative to this dir.
+# Machine-specific — only valid on a machine where this path is synced, and
+# not applied inside the Docker container (see README).
+videosDir: "/Users/mooncat/Library/CloudStorage/GoogleDrive-thaiquangquy0108@gmail.com/.shortcut-targets-by-id/12VkBUxm1hL0X_XztAglTl-rBjarWKpNe/Abeka (fb.com groups freebook4kids)/02. ABEAKA K5/ABEKA-K5-PHONIC"

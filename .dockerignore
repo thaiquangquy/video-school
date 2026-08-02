@@ -1,0 +1,23 @@
+node_modules
+.next
+out
+coverage
+.git
+.DS_Store
+npm-debug.log*
+*.tsbuildinfo
+.env*
+
+# local app data — the real db/videos are bind-mounted at runtime, not baked in
+data/app.db
+data/app.db-journal
+data/app.db-wal
+data/app.db-shm
+data/videos/*
+!data/videos/.gitkeep
+data/thumbnails/*
+!data/thumbnails/.gitkeep
+
+tests
+homeschool-tracker-plan.md
+README.md

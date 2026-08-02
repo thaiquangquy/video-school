@@ -15,6 +15,26 @@ Open [http://localhost:3000](http://localhost:3000) on the machine running the s
 
 `npm run build && npm run start` runs the same app in production mode, same binding.
 
+## Running with Docker
+
+```bash
+docker build -t video-school .
+docker run -d --name video-school -p 3000:3000 -v "$(pwd)/data:/app/data" video-school
+```
+
+Bind-mounting `./data` is what makes this behave like the local setup: it's the same
+`data/lessons.yaml` you edit, the same `data/videos/` you drop files into, and the
+sqlite db persists across container restarts/rebuilds. Without the `-v` flag the
+container still runs, but starts from the manifest baked into the image and loses
+its db each time the container is removed.
+
+Open `http://localhost:3000`, or `http://<host-lan-ip>:3000` from another device on
+the network (same reachability model as `npm run dev`/`start` — LAN only, not
+internet-facing).
+
+To update after pulling code changes: `docker build -t video-school .` again, then
+`docker rm -f video-school` and re-run the `docker run` command above.
+
 ### Using it on an iPad (PWA)
 
 This app is installable as a Progressive Web App. On the iPad, open `http://<your-mac's-lan-ip>:3000` in Safari, tap the Share icon, then "Add to Home Screen." It'll launch full-screen like a native app, with its own icon.
@@ -55,7 +75,7 @@ Each entry:
 | `title`     | yes      | Display title.                                                                                          |
 | `subject`   | yes      | Grouping used on the Library page, e.g. `Math`, `Reading`.                                              |
 | `tags`      | no       | List of free-form tags.                                                                                 |
-| `localPath` | no       | Path to the video file, relative to `data/videos/` (or absolute). Leave it out if not downloaded yet — the folder watcher fills it in automatically once a matching file shows up (see below). |
+| `localPath` | no       | Path to the video file, relative to the videos directory (`data/videos/` by default, or `videosDir` from `data/config.yaml` if set — see below), or absolute. Leave it out if not downloaded yet — the folder watcher fills it in automatically once a matching file shows up (see below). |
 | `driveUrl`  | no       | A Google Drive share link or bare file id, used until/unless a local file exists.                       |
 | `order`     | yes      | Integer used to sort lessons within a subject group.                                                     |
 
@@ -70,6 +90,26 @@ Drop downloaded video files into `data/videos/`. A background watcher matches ne
 **Name your video file after the lesson `id`** for a reliable match (e.g. `math-fractions-01.mp4` for lesson id `math-fractions-01`). Matching is normalized (case-insensitive, punctuation/spacing collapsed), so `Math - Fractions 01.mp4` also matches. If no lesson id matches, it'll try matching against the lesson's `title` instead. If a file doesn't match anything, it's left alone and a warning is logged to the server console with the filename — check there if a file doesn't seem to be linking up, rather than the app guessing wrong and mislinking two lessons.
 
 If a lesson's linked video file is later moved or deleted, its `localPath` is automatically cleared (also logged) and the app falls back to `driveUrl` if one is set. Requesting a video whose file has gone missing on disk (without the watcher having caught it yet) returns a clean 404 rather than crashing the watch page.
+
+### Using an external videos directory (e.g. Google Drive Desktop)
+
+By default the watcher watches `data/videos/`. To stream files directly from elsewhere — for example a folder synced locally by Google Drive Desktop, without downloading a separate copy — set `videosDir` in `data/config.yaml` to an absolute path:
+
+```yaml
+videosDir: "/Users/you/Library/CloudStorage/GoogleDrive-you@example.com/My Drive/some-folder"
+```
+
+Everything else works the same: `localPath` values in the manifest resolve relative to this directory instead of `data/videos/`, and the folder watcher/auto-matcher watches it instead. This is a machine-specific setting — it only makes sense on the machine where that path actually exists, and it isn't picked up inside the Docker container (whose `videosDir` would need to resolve to a path bind-mounted into the container).
+
+## Google Drive source folder (`data/config.yaml`)
+
+Videos not yet downloaded locally can play from Google Drive via each lesson's `driveUrl` (see manifest format below). To make it easy to find the right file, set `driveFolderUrl` in `data/config.yaml` to the parent Drive folder they're kept in:
+
+```yaml
+driveFolderUrl: "https://drive.google.com/drive/folders/11tTJmzxFeoiRLhkV6gDRJ89Uhx6vvJG1"
+```
+
+There's no Drive API key configured, so the app can't list the folder's contents or auto-match files to lessons the way the local folder watcher does. Instead, any lesson with no video source configured shows a "Browse the source folder on Google Drive" link on its Watch page — open it, find the file, copy its share link, and paste it into that lesson's `driveUrl` in `data/lessons.yaml`. `data/config.yaml` is optional; without it (or without `driveFolderUrl` set), that link is simply omitted.
 
 ## API
 
