@@ -2,7 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { load as loadYaml } from "js-yaml";
 
-export const MANIFEST_PATH = path.join(process.cwd(), "data", "lessons.yaml");
+// Overridable so e2e tests can sync from an isolated fixture manifest
+// instead of the real data/lessons.yaml — unset in normal dev/Docker usage.
+export const MANIFEST_PATH = process.env.LESSONS_MANIFEST_PATH
+  ? path.resolve(process.env.LESSONS_MANIFEST_PATH)
+  : path.join(process.cwd(), "data", "lessons.yaml");
 
 export type ManifestLesson = {
   id: string;

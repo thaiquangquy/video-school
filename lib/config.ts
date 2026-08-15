@@ -2,7 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { load as loadYaml } from "js-yaml";
 
-export const CONFIG_PATH = path.join(process.cwd(), "data", "config.yaml");
+// Overridable so e2e tests can point at an isolated fixture config (and,
+// transitively via its videosDir, a fixture videos dir) — unset in normal
+// dev/Docker usage.
+export const CONFIG_PATH = process.env.APP_CONFIG_PATH
+  ? path.resolve(process.env.APP_CONFIG_PATH)
+  : path.join(process.cwd(), "data", "config.yaml");
 
 export type AppConfig = {
   driveFolderUrl: string | null;

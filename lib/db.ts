@@ -3,14 +3,16 @@ import path from "node:path";
 import fs from "node:fs";
 
 const DATA_DIR = path.join(process.cwd(), "data");
-const DB_PATH = path.join(DATA_DIR, "app.db");
+// Overridable so e2e tests can point at an isolated fixture db instead of
+// the real dev/production data/app.db — unset in normal dev/Docker usage.
+const DB_PATH = process.env.DB_PATH ? path.resolve(process.env.DB_PATH) : path.join(DATA_DIR, "app.db");
 
 declare global {
   var __homeschoolDb: Database.Database | undefined;
 }
 
 function createConnection(): Database.Database {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
   const database = new Database(DB_PATH);
   database.pragma("journal_mode = WAL");
   database.pragma("foreign_keys = ON");
