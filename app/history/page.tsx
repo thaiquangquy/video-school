@@ -14,8 +14,8 @@ function formatWatchTime(seconds: number): string {
 }
 
 export default async function HistoryPage() {
-  const { items, total } = getHistory(PAGE_SIZE, 0);
-  const summary = getHistorySummary();
+  const { items, total } = await getHistory(PAGE_SIZE, 0);
+  const summary = await getHistorySummary();
 
   return (
     <div>

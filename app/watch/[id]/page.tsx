@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default async function WatchPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const lesson = getLessonById(id);
+  const lesson = await getLessonById(id);
 
   if (!lesson) {
     notFound();

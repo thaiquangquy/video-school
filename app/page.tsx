@@ -10,8 +10,8 @@ export const dynamic = "force-dynamic";
 const UP_NEXT_FETCH_COUNT = 4;
 
 export default async function Home() {
-  const allLessons = getAllLessons();
-  const { continueLearning, upNext } = getContinueLearning(undefined, UP_NEXT_FETCH_COUNT);
+  const allLessons = await getAllLessons();
+  const { continueLearning, upNext } = await getContinueLearning(undefined, UP_NEXT_FETCH_COUNT);
 
   const startHere = !continueLearning ? (upNext[0] ?? null) : null;
   const upNextDisplay = continueLearning ? upNext.slice(0, 3) : upNext.slice(1, 4);

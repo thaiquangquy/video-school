@@ -1,5 +1,5 @@
-import { db } from "./db";
-import { readManifest, type ManifestLesson } from "./manifest";
+import { db } from "../db";
+import { readManifest, type ManifestLesson } from "../manifest";
 
 type ExistingLessonRow = {
   id: string;
@@ -17,10 +17,10 @@ type ExistingLessonRow = {
  * cascading deletes and keeps watch history intact if a lesson id ever
  * comes back to the manifest later.
  */
-export function syncLessonsFromManifest(manifestPath?: string): {
+export async function syncLessonsFromManifest(manifestPath?: string): Promise<{
   synced: number;
   archived: number;
-} {
+}> {
   const manifestLessons = readManifest(manifestPath);
   const manifestIds = new Set(manifestLessons.map((l) => l.id));
 

@@ -45,36 +45,36 @@ describe("upsertProgress", () => {
     insertLesson(testDb);
   });
 
-  it("marks in_progress when position is below the completion threshold", () => {
-    const lesson = upsertProgress("lesson-1", { positionSeconds: 30, durationSeconds: 100, source: "local" }, testDb);
+  it("marks in_progress when position is below the completion threshold", async () => {
+    const lesson = await upsertProgress("lesson-1", { positionSeconds: 30, durationSeconds: 100, source: "local" }, testDb);
     expect(lesson?.progress.status).toBe("in_progress");
     expect(lesson?.progress.positionSeconds).toBe(30);
   });
 
-  it("marks completed at or above the 95% threshold", () => {
-    const lesson = upsertProgress("lesson-1", { positionSeconds: 96, durationSeconds: 100, source: "local" }, testDb);
+  it("marks completed at or above the 95% threshold", async () => {
+    const lesson = await upsertProgress("lesson-1", { positionSeconds: 96, durationSeconds: 100, source: "local" }, testDb);
     expect(lesson?.progress.status).toBe("completed");
   });
 
-  it("never downgrades a completed lesson back to in_progress on rewatch", () => {
-    upsertProgress("lesson-1", { positionSeconds: 100, durationSeconds: 100, source: "local" }, testDb);
-    const rewatch = upsertProgress("lesson-1", { positionSeconds: 5, durationSeconds: 100, source: "local" }, testDb);
+  it("never downgrades a completed lesson back to in_progress on rewatch", async () => {
+    await upsertProgress("lesson-1", { positionSeconds: 100, durationSeconds: 100, source: "local" }, testDb);
+    const rewatch = await upsertProgress("lesson-1", { positionSeconds: 5, durationSeconds: 100, source: "local" }, testDb);
     expect(rewatch?.progress.status).toBe("completed");
   });
 
-  it("returns null for an unknown lesson id", () => {
-    const result = upsertProgress("does-not-exist", { positionSeconds: 5, durationSeconds: 100, source: "local" }, testDb);
+  it("returns null for an unknown lesson id", async () => {
+    const result = await upsertProgress("does-not-exist", { positionSeconds: 5, durationSeconds: 100, source: "local" }, testDb);
     expect(result).toBeNull();
   });
 
-  it("defaults to in_progress when duration is unknown", () => {
-    const lesson = upsertProgress("lesson-1", { positionSeconds: 5, durationSeconds: null, source: "drive" }, testDb);
+  it("defaults to in_progress when duration is unknown", async () => {
+    const lesson = await upsertProgress("lesson-1", { positionSeconds: 5, durationSeconds: null, source: "drive" }, testDb);
     expect(lesson?.progress.status).toBe("in_progress");
   });
 
-  it("creates one watch_events row for consecutive heartbeats within the session gap", () => {
-    upsertProgress("lesson-1", { positionSeconds: 5, durationSeconds: 100, source: "local" }, testDb);
-    upsertProgress("lesson-1", { positionSeconds: 10, durationSeconds: 100, source: "local" }, testDb);
+  it("creates one watch_events row for consecutive heartbeats within the session gap", async () => {
+    await upsertProgress("lesson-1", { positionSeconds: 5, durationSeconds: 100, source: "local" }, testDb);
+    await upsertProgress("lesson-1", { positionSeconds: 10, durationSeconds: 100, source: "local" }, testDb);
 
     const count = testDb.prepare("SELECT COUNT(*) AS c FROM watch_events WHERE lesson_id = ?").get("lesson-1") as {
       c: number;
@@ -82,14 +82,14 @@ describe("upsertProgress", () => {
     expect(count.c).toBe(1);
   });
 
-  it("starts a new watch_events row after a gap of more than 5 minutes", () => {
-    upsertProgress("lesson-1", { positionSeconds: 5, durationSeconds: 100, source: "local" }, testDb);
+  it("starts a new watch_events row after a gap of more than 5 minutes", async () => {
+    await upsertProgress("lesson-1", { positionSeconds: 5, durationSeconds: 100, source: "local" }, testDb);
 
     // Simulate the previous session having ended 10 minutes ago.
     const staleEndedAt = new Date(Date.now() - 10 * 60 * 1000).toISOString();
     testDb.prepare("UPDATE watch_events SET ended_at = ? WHERE lesson_id = ?").run(staleEndedAt, "lesson-1");
 
-    upsertProgress("lesson-1", { positionSeconds: 20, durationSeconds: 100, source: "local" }, testDb);
+    await upsertProgress("lesson-1", { positionSeconds: 20, durationSeconds: 100, source: "local" }, testDb);
 
     const count = testDb.prepare("SELECT COUNT(*) AS c FROM watch_events WHERE lesson_id = ?").get("lesson-1") as {
       c: number;
@@ -106,9 +106,9 @@ describe("markStatus", () => {
     insertLesson(testDb);
   });
 
-  it("sets the requested status directly, even when downgrading from completed", () => {
-    markStatus("lesson-1", "completed", testDb);
-    const lesson = markStatus("lesson-1", "in_progress", testDb);
+  it("sets the requested status directly, even when downgrading from completed", async () => {
+    await markStatus("lesson-1", "completed", testDb);
+    const lesson = await markStatus("lesson-1", "in_progress", testDb);
     expect(lesson?.progress.status).toBe("in_progress");
   });
 });
@@ -123,22 +123,22 @@ describe("getContinueLearning", () => {
     insertLesson(testDb, { id: "lesson-c", orderIndex: 3 });
   });
 
-  it("never surfaces a completed lesson as continue-learning", () => {
-    upsertProgress("lesson-a", { positionSeconds: 100, durationSeconds: 100, source: "local" }, testDb);
-    const result = getContinueLearning(testDb);
+  it("never surfaces a completed lesson as continue-learning", async () => {
+    await upsertProgress("lesson-a", { positionSeconds: 100, durationSeconds: 100, source: "local" }, testDb);
+    const result = await getContinueLearning(testDb);
     expect(result.continueLearning).toBeNull();
   });
 
-  it("returns the most recently watched in_progress lesson", () => {
-    upsertProgress("lesson-a", { positionSeconds: 10, durationSeconds: 100, source: "local" }, testDb);
-    upsertProgress("lesson-b", { positionSeconds: 10, durationSeconds: 100, source: "local" }, testDb);
-    const result = getContinueLearning(testDb);
+  it("returns the most recently watched in_progress lesson", async () => {
+    await upsertProgress("lesson-a", { positionSeconds: 10, durationSeconds: 100, source: "local" }, testDb);
+    await upsertProgress("lesson-b", { positionSeconds: 10, durationSeconds: 100, source: "local" }, testDb);
+    const result = await getContinueLearning(testDb);
     expect(result.continueLearning?.id).toBe("lesson-b");
   });
 
-  it("excludes completed lessons from up-next suggestions", () => {
-    upsertProgress("lesson-a", { positionSeconds: 100, durationSeconds: 100, source: "local" }, testDb);
-    const result = getContinueLearning(testDb);
+  it("excludes completed lessons from up-next suggestions", async () => {
+    await upsertProgress("lesson-a", { positionSeconds: 100, durationSeconds: 100, source: "local" }, testDb);
+    const result = await getContinueLearning(testDb);
     const upNextIds = result.upNext.map((l) => l.id);
     expect(upNextIds).not.toContain("lesson-a");
     expect(upNextIds).toEqual(["lesson-b", "lesson-c"]);
@@ -146,10 +146,10 @@ describe("getContinueLearning", () => {
 });
 
 describe("getLessonById", () => {
-  it("returns null for archived lessons", () => {
+  it("returns null for archived lessons", async () => {
     const testDb = createTestDb();
     insertLesson(testDb, { id: "lesson-1" });
     testDb.prepare("UPDATE lessons SET archived = 1 WHERE id = ?").run("lesson-1");
-    expect(getLessonById("lesson-1", testDb)).toBeNull();
+    expect(await getLessonById("lesson-1", testDb)).toBeNull();
   });
 });

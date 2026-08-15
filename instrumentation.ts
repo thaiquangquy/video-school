@@ -5,16 +5,20 @@ export async function register() {
     return;
   }
 
-  const { initSchema } = await import("./lib/db");
+  const { BACKEND } = await import("./lib/backend");
   const { syncLessonsFromManifest } = await import("./lib/sync");
   const { startVideoWatcher } = await import("./lib/watcher");
 
-  initSchema();
-  const result = syncLessonsFromManifest();
+  if (BACKEND === "sqlite") {
+    const { initSchema } = await import("./lib/db");
+    initSchema();
+  }
+
+  const result = await syncLessonsFromManifest();
   console.log(
     `[startup] Synced ${result.synced} lesson(s) from manifest` +
       (result.archived > 0 ? `, archived ${result.archived} removed from manifest` : ""),
   );
 
-  startVideoWatcher();
+  await startVideoWatcher();
 }

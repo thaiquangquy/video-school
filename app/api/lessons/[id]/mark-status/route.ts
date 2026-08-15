@@ -22,7 +22,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     );
   }
 
-  const lesson = markStatus(id, body.status);
+  const lesson = await markStatus(id, body.status);
 
   if (!lesson) {
     return NextResponse.json({ error: "Lesson not found" }, { status: 404 });

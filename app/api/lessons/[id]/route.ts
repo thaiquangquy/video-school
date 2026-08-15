@@ -3,7 +3,7 @@ import { getLessonById } from "@/lib/lessons";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const lesson = getLessonById(id);
+  const lesson = await getLessonById(id);
 
   if (!lesson) {
     return NextResponse.json({ error: "Lesson not found" }, { status: 404 });

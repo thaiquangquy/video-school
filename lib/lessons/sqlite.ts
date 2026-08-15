@@ -1,27 +1,16 @@
 import type Database from "better-sqlite3";
-import { db } from "./db";
-
-export type WatchStatus = "not_started" | "in_progress" | "completed";
-export type WatchSource = "local" | "drive";
-
-export type LessonWithProgress = {
-  id: string;
-  title: string;
-  subject: string;
-  tags: string[];
-  localPath: string | null;
-  localPathSource: "manifest" | "auto_matched" | null;
-  driveUrl: string | null;
-  orderIndex: number;
-  durationSeconds: number | null;
-  progress: {
-    positionSeconds: number;
-    durationSeconds: number | null;
-    status: WatchStatus;
-    lastWatchedAt: string | null;
-    sourceLastPlayed: WatchSource | null;
-  };
-};
+import { db } from "../db";
+import type {
+  WatchStatus,
+  WatchSource,
+  LessonWithProgress,
+  ProgressInput,
+  ContinueLearning,
+  HistoryItem,
+  HistorySummary,
+  UnmatchedLessonCandidate,
+  LessonLocalPathEntry,
+} from "./types";
 
 type LessonRow = {
   id: string;
@@ -71,25 +60,19 @@ function rowToLesson(row: LessonRow): LessonWithProgress {
   };
 }
 
-export function getAllLessons(database: Database.Database = db): LessonWithProgress[] {
+export async function getAllLessons(database: Database.Database = db): Promise<LessonWithProgress[]> {
   const rows = database
     .prepare(`${LESSON_WITH_PROGRESS_SELECT} WHERE l.archived = 0 ORDER BY l.subject ASC, l.order_index ASC, l.id ASC`)
     .all() as LessonRow[];
   return rows.map(rowToLesson);
 }
 
-export function getLessonById(id: string, database: Database.Database = db): LessonWithProgress | null {
+export async function getLessonById(id: string, database: Database.Database = db): Promise<LessonWithProgress | null> {
   const row = database.prepare(`${LESSON_WITH_PROGRESS_SELECT} WHERE l.id = ? AND l.archived = 0`).get(id) as
     | LessonRow
     | undefined;
   return row ? rowToLesson(row) : null;
 }
-
-export type ProgressInput = {
-  positionSeconds: number;
-  durationSeconds: number | null;
-  source: WatchSource;
-};
 
 const COMPLETION_THRESHOLD = 0.95;
 const NEW_SESSION_GAP_MS = 5 * 60 * 1000;
@@ -113,12 +96,12 @@ function nextUpdatedSeq(database: Database.Database): number {
  * it back to 'in_progress' — "Continue Learning" must never resurface a
  * finished lesson, even mid-rewatch.
  */
-export function upsertProgress(
+export async function upsertProgress(
   id: string,
   input: ProgressInput,
   database: Database.Database = db,
-): LessonWithProgress | null {
-  const lesson = getLessonById(id, database);
+): Promise<LessonWithProgress | null> {
+  const lesson = await getLessonById(id, database);
   if (!lesson) return null;
 
   const existing = database.prepare("SELECT status FROM watch_progress WHERE lesson_id = ?").get(id) as
@@ -176,8 +159,12 @@ export function upsertProgress(
 }
 
 /** Manual status override (mainly for Drive-sourced lessons). Unlike upsertProgress, this is NOT monotonic — it's an explicit user action, including resets. */
-export function markStatus(id: string, status: WatchStatus, database: Database.Database = db): LessonWithProgress | null {
-  const lesson = getLessonById(id, database);
+export async function markStatus(
+  id: string,
+  status: WatchStatus,
+  database: Database.Database = db,
+): Promise<LessonWithProgress | null> {
+  const lesson = await getLessonById(id, database);
   if (!lesson) return null;
 
   const now = new Date().toISOString();
@@ -198,8 +185,8 @@ export function markStatus(id: string, status: WatchStatus, database: Database.D
 }
 
 /** Resets a lesson's tracked position/status back to not_started (does not touch watch_events history). */
-export function resetProgress(id: string, database: Database.Database = db): LessonWithProgress | null {
-  const lesson = getLessonById(id, database);
+export async function resetProgress(id: string, database: Database.Database = db): Promise<LessonWithProgress | null> {
+  const lesson = await getLessonById(id, database);
   if (!lesson) return null;
 
   database
@@ -212,11 +199,6 @@ export function resetProgress(id: string, database: Database.Database = db): Les
   return getLessonById(id, database);
 }
 
-export type ContinueLearning = {
-  continueLearning: LessonWithProgress | null;
-  upNext: LessonWithProgress[];
-};
-
 /**
  * "Continue Learning" = most-recently-watched lesson with status='in_progress'.
  * Completed lessons are excluded, full stop — no tie-break logic, no
@@ -224,7 +206,7 @@ export type ContinueLearning = {
  * manifest order, skipping the continue-learning lesson and anything already
  * completed.
  */
-export function getContinueLearning(database: Database.Database = db, upNextCount = 3): ContinueLearning {
+export async function getContinueLearning(database: Database.Database = db, upNextCount = 3): Promise<ContinueLearning> {
   const row = database
     .prepare(`${LESSON_WITH_PROGRESS_SELECT} WHERE l.archived = 0 AND p.status = 'in_progress' ORDER BY p.updated_seq DESC LIMIT 1`)
     .get() as LessonRow | undefined;
@@ -245,18 +227,6 @@ export function getContinueLearning(database: Database.Database = db, upNextCoun
   return { continueLearning, upNext: upNextRows.map(rowToLesson) };
 }
 
-export type HistoryItem = {
-  eventId: number;
-  lessonId: string;
-  title: string;
-  subject: string;
-  source: WatchSource;
-  startedAt: string;
-  endedAt: string;
-  positionSeconds: number | null;
-  durationSeconds: number | null;
-};
-
 type HistoryRow = {
   event_id: number;
   lesson_id: string;
@@ -275,11 +245,11 @@ type HistoryRow = {
  * schema doesn't store a per-session position snapshot) rather than the
  * exact position at that specific session's end.
  */
-export function getHistory(
+export async function getHistory(
   limit: number,
   offset: number,
   database: Database.Database = db,
-): { items: HistoryItem[]; total: number } {
+): Promise<{ items: HistoryItem[]; total: number }> {
   const rows = database
     .prepare(
       `SELECT
@@ -315,16 +285,10 @@ export function getHistory(
   return { items, total: count };
 }
 
-export type HistorySummary = {
-  completedCount: number;
-  distinctLessonsTouched: number;
-  watchTimeThisWeekSeconds: number;
-};
-
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** Stats for the History page's summary strip. "This week" = the last 7 days, not calendar week. */
-export function getHistorySummary(database: Database.Database = db): HistorySummary {
+export async function getHistorySummary(database: Database.Database = db): Promise<HistorySummary> {
   const { completedCount } = database
     .prepare(
       `SELECT COUNT(*) AS completedCount
@@ -354,4 +318,67 @@ export function getHistorySummary(database: Database.Database = db): HistorySumm
     .get(sevenDaysAgo) as { watchTimeThisWeekSeconds: number };
 
   return { completedCount, distinctLessonsTouched, watchTimeThisWeekSeconds };
+}
+
+// --- Enrollment-interface symmetry stubs -----------------------------------
+// Local sqlite mode has no accounts/enrollment concept: the single shared
+// login always sees and tracks every lesson. These exist purely so callers
+// written against the dispatched lib/lessons/index.ts interface (which also
+// has to satisfy the supabase backend, where enrollment is real) don't need
+// to branch on BACKEND themselves.
+
+export async function getEnrolledLessons(database: Database.Database = db): Promise<LessonWithProgress[]> {
+  return getAllLessons(database);
+}
+
+export async function getCatalog(database: Database.Database = db): Promise<LessonWithProgress[]> {
+  const lessons = await getAllLessons(database);
+  return lessons.map((l) => ({ ...l, isEnrolled: true }));
+}
+
+export async function enroll(_lessonId: string, _database: Database.Database = db): Promise<void> {
+  // no-op: every lesson is always visible/tracked under the one shared local login
+}
+
+export async function unenroll(_lessonId: string, _database: Database.Database = db): Promise<void> {
+  // no-op, see enroll()
+}
+
+// --- lib/watcher.ts dispatch surface ----------------------------------
+// Moved here (task 13) so lib/watcher.ts never touches better-sqlite3 (or
+// the Supabase client) directly — it only calls these through
+// lib/lessons/index.ts's dispatch. Query logic is unchanged from the
+// pre-refactor direct db.prepare(...) calls that used to live in
+// lib/watcher.ts.
+
+/** Lessons with no local_path yet — candidates for the file watcher's filename matcher. */
+export async function getUnmatchedLessons(database: Database.Database = db): Promise<UnmatchedLessonCandidate[]> {
+  return database
+    .prepare("SELECT id, title FROM lessons WHERE local_path IS NULL AND archived = 0")
+    .all() as UnmatchedLessonCandidate[];
+}
+
+/**
+ * Lessons that currently have a local_path set — used by the watcher to
+ * detect a file that's already linked (so a chokidar 'add' for it isn't
+ * re-matched/reported as unmatched) and to prune local_paths pointing at
+ * files no longer on disk.
+ */
+export async function getLessonsWithLocalPath(database: Database.Database = db): Promise<LessonLocalPathEntry[]> {
+  const rows = database
+    .prepare("SELECT id, local_path FROM lessons WHERE local_path IS NOT NULL AND archived = 0")
+    .all() as { id: string; local_path: string }[];
+  return rows.map((row) => ({ id: row.id, localPath: row.local_path }));
+}
+
+/** Sets a lesson's local_path from the watcher auto-matching a video file to it. */
+export async function setLocalPath(lessonId: string, localPath: string, database: Database.Database = db): Promise<void> {
+  database
+    .prepare("UPDATE lessons SET local_path = ?, local_path_source = 'auto_matched' WHERE id = ?")
+    .run(localPath, lessonId);
+}
+
+/** Clears a lesson's local_path (its linked file was deleted/moved, or is unreachable at startup). */
+export async function clearLocalPath(lessonId: string, database: Database.Database = db): Promise<void> {
+  database.prepare("UPDATE lessons SET local_path = NULL, local_path_source = NULL WHERE id = ?").run(lessonId);
 }

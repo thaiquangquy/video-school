@@ -13,8 +13,8 @@ export async function GET(request: Request) {
   const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, MAX_LIMIT) : DEFAULT_LIMIT;
   const offset = Number.isFinite(offsetParam) && offsetParam >= 0 ? offsetParam : 0;
 
-  const result = getHistory(limit, offset);
-  const summary = offset === 0 ? getHistorySummary() : undefined;
+  const result = await getHistory(limit, offset);
+  const summary = offset === 0 ? await getHistorySummary() : undefined;
 
   return NextResponse.json({ ...result, limit, offset, summary });
 }

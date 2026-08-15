@@ -37,7 +37,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "source must be 'local' or 'drive'" }, { status: 400 });
   }
 
-  const lesson = upsertProgress(id, {
+  const lesson = await upsertProgress(id, {
     positionSeconds,
     durationSeconds: (durationSeconds as number | null | undefined) ?? null,
     source,
