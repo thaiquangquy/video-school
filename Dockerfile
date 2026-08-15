@@ -16,6 +16,14 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# NEXT_PUBLIC_* vars get inlined into the JS bundle at build time by `next build`,
+# unlike DATA_BACKEND/APP_PASSWORD/SESSION_SECRET/SUPABASE_SERVICE_ROLE_KEY which
+# stay pure runtime `docker run -e` vars (see README's Docker section). Defaulted
+# to empty string so a local-mode build (no --build-arg passed) still succeeds.
+ARG NEXT_PUBLIC_SUPABASE_URL=""
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY=""
+ENV NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
 RUN npm run build
 
 # --- runner: minimal production image ---

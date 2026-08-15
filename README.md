@@ -17,9 +17,22 @@ Open [http://localhost:3000](http://localhost:3000) on the machine running the s
 
 ## Running with Docker
 
+One image supports both data backends (`sqlite` local mode, `supabase` cloud mode —
+see `docs/supabase-integration-plan.md` for the full dual-backend design), but with
+an important asymmetry: `DATA_BACKEND`, `APP_PASSWORD`/`SESSION_SECRET`, and
+`SUPABASE_SERVICE_ROLE_KEY` are pure runtime env vars (`docker run -e ...`, no
+rebuild needed to change them). `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY`
+are different — `next build` inlines them into the JS bundle, so cloud-mode
+deployments need their own image build with those passed as `--build-arg`; a
+local-mode image can't be flipped into cloud mode with just `docker run -e`.
+
+### Local mode (default, sqlite)
+
 ```bash
 docker build -t video-school .
-docker run -d --name video-school -p 3000:3000 -v "$(pwd)/data:/app/data" video-school
+docker run -d --name video-school -p 3000:3000 \
+  -e DATA_BACKEND=sqlite -e APP_PASSWORD=... -e SESSION_SECRET=... \
+  -v "$(pwd)/data:/app/data" video-school
 ```
 
 Bind-mounting `./data` is what makes this behave like the local setup: it's the same
@@ -28,12 +41,32 @@ sqlite db persists across container restarts/rebuilds. Without the `-v` flag the
 container still runs, but starts from the manifest baked into the image and loses
 its db each time the container is removed.
 
+### Cloud mode (supabase)
+
+```bash
+docker build -t video-school \
+  --build-arg NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co \
+  --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY=... .
+docker run -d --name video-school -p 3000:3000 \
+  -e DATA_BACKEND=supabase -e SUPABASE_SERVICE_ROLE_KEY=... \
+  -e NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co \
+  -e NEXT_PUBLIC_SUPABASE_ANON_KEY=... \
+  -v "$(pwd)/data:/app/data" video-school
+```
+
+The two `NEXT_PUBLIC_*` vars are passed at both build and run time — build time so
+they get inlined into the bundle, run time because server-side code also reads
+`process.env` directly for these, so pass both to avoid confusion about which one
+"actually" controls behavior. The `data/` volume is still needed in cloud mode for
+`data/lessons.yaml`/`data/videos/`, just not for a sqlite db. No self-hosted
+Supabase Docker stack — cloud mode always points at a real Supabase Cloud project.
+
 Open `http://localhost:3000`, or `http://<host-lan-ip>:3000` from another device on
 the network (same reachability model as `npm run dev`/`start` — LAN only, not
 internet-facing).
 
-To update after pulling code changes: `docker build -t video-school .` again, then
-`docker rm -f video-school` and re-run the `docker run` command above.
+To update after pulling code changes: rerun the matching `docker build` command
+above, then `docker rm -f video-school` and re-run the `docker run` command.
 
 ### Using it on an iPad (PWA)
 
