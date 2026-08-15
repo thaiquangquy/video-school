@@ -12,6 +12,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run test` — Vitest, runs the full suite once
 - `npx vitest run tests/lessons.test.ts` — single test file
 - `npx vitest run -t "test name substring"` — single test by name
+- `npm run test:coverage` — Vitest with the coverage gate (see "Testing" below)
+- `npm run test:e2e` — Playwright e2e suite (`e2e/**`), headless Chromium against port 3100
+- `npm run test:e2e:ui` — same, in Playwright's interactive UI mode (useful while writing/debugging a spec)
 - `npx tsc --noEmit` — typecheck
 - Docker: one image, two modes via `DATA_BACKEND` (`sqlite` default or `supabase`) — but `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY` must also be passed as `--build-arg` at build time (they're inlined into the JS bundle by `next build`), unlike the other mode-selection vars which are pure `docker run -e` runtime vars. Exact `docker build`/`docker run` invocations for both modes: README's "Running with Docker" section (kept there, not duplicated here, to avoid drift). The bind-mounted `data/` volume persists `data/lessons.yaml` edits, `data/videos/`, and (local mode only) the sqlite db across rebuilds; without it the container falls back to the `data/` baked into the image.
 
@@ -40,7 +43,7 @@ Local mode's SQLite (`better-sqlite3`); cloud mode's Supabase Postgres — eithe
 
 ### Backend selection (`lib/backend.ts`)
 
-`DATA_BACKEND` (`sqlite` default, or `supabase`) is read once at module load in `lib/backend.ts`, which validates it and exports `BACKEND` and `SUPPORTS_ENROLLMENT` (`true` only for `supabase`) — nothing else reads `process.env.DATA_BACKEND` directly. All 6 env vars across both modes (`DATA_BACKEND`, local mode's `APP_PASSWORD`/`SESSION_SECRET`, cloud mode's `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY`) are documented in `.env.example`.
+`DATA_BACKEND` (`sqlite` default, or `supabase`) is read once at module load in `lib/backend.ts`, which validates it and exports `BACKEND` and `SUPPORTS_ENROLLMENT` (`true` only for `supabase`) — nothing else reads `process.env.DATA_BACKEND` directly. All 6 env vars across both modes (`DATA_BACKEND`, local mode's `APP_PASSWORD`/`SESSION_SECRET`, cloud mode's `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY`) are documented in `.env.example`, along with three e2e-only isolation overrides (`DB_PATH`/`LESSONS_MANIFEST_PATH`/`APP_CONFIG_PATH` — see "Testing" below).
 
 Both modes are dispatched through a common interface rather than duplicated call sites — callers only ever import each barrel's `index.ts`, never branch on `BACKEND` themselves (except `SUPPORTS_ENROLLMENT`-gated UI, below):
 - `lib/lessons/{sqlite,supabase}.ts` behind `lib/lessons/index.ts` (imported as `@/lib/lessons`) — lesson CRUD, progress, history, catalog/enrollment. `lib/lessons/types.ts` holds the shared types.
@@ -77,15 +80,25 @@ Same rules in both modes — `lib/lessons/supabase.ts` reimplements this busines
 - Pages: `/` (Home / continue-learning), `/library` (browse + enroll, enroll UI only when `SUPPORTS_ENROLLMENT`), `/watch/[id]`, `/history`, `/login` (unauthenticated only — `proxy.ts` redirects here) — all except `/login` are `export const dynamic = "force-dynamic"` since everything renders from the active backend, not static generation.
 - API: `/api/lessons`, `/api/lessons/[id]`, `/api/lessons/[id]/video`, `/api/lessons/[id]/progress`, `/api/lessons/[id]/mark-status`, `/api/lessons/[id]/reset`, `/api/lessons/[id]/enroll`, `/api/lessons/[id]/unenroll` (no-ops in local mode, see "Backend selection" above), `/api/continue-learning`, `/api/history`, `/api/health` (excluded from the `proxy.ts` auth gate).
 
-### Testing
+### Testing (required for every code change)
 
-Vitest with `environment: "node"`. Local-mode-focused tests inject an in-memory `better-sqlite3` `Database` through the optional trailing `database` parameter that most `lib/lessons/sqlite.ts` functions accept (see `tests/lessons.test.ts`), rather than mocking the module-level `db` export from `lib/db.ts`. `tests/backend.test.ts` covers `lib/backend.ts`'s `DATA_BACKEND` validation/dispatch; `tests/auth-local.test.ts` covers local-mode session/password handling. Both run as part of the default `npm run test`.
+**Every code change must ship with tests**: unit tests (Vitest, TDD-first — write the test before the implementation) for any new/changed `lib/**` business logic, and a Playwright e2e spec under `e2e/**` for anything touching a page, route, or user-facing flow. This is enforced by CI (`.github/workflows/ci.yml`'s `test` and `e2e` jobs), not just convention.
+
+**Unit tests** — Vitest with `environment: "node"`. Local-mode-focused tests inject an in-memory `better-sqlite3` `Database` through the optional trailing `database` parameter that most `lib/lessons/sqlite.ts` functions accept (see `tests/lessons.test.ts`), rather than mocking the module-level `db` export from `lib/db.ts`. `tests/backend.test.ts` covers `lib/backend.ts`'s `DATA_BACKEND` validation/dispatch; `tests/auth-local.test.ts`/`tests/auth-index.test.ts` cover local-mode session/password handling; `tests/manifest.test.ts`, `tests/config.test.ts`, `tests/videoMatch.test.ts`, `tests/sync-sqlite.test.ts`, `tests/sync-index.test.ts` cover the manifest/config parsing, filename-matching, and sync-reconciliation logic. All run as part of the default `npm run test`.
 
 `tests/cross-account-isolation.supabase.test.ts` is opt-in and does **not** run as part of `npm run test`: it's the correctness test for cloud mode's core new guarantee — that two accounts' enrollment/progress/history never leak into each other despite sharing the same lesson catalog. It needs a real local Supabase instance (`npx supabase start`, with `supabase/migrations/` applied) and self-skips (`describe.skipIf`) unless the three cloud-mode env vars are set. Run it explicitly:
 
 ```
 DATA_BACKEND=supabase npx vitest run tests/cross-account-isolation.supabase.test.ts
 ```
+
+**Coverage gate** — `npm run test:coverage` runs Vitest with `@vitest/coverage-v8` and fails under an 80% threshold (lines/functions/branches/statements), configured in `vitest.config.ts`. Scoped to `include: ["lib/**/*.ts"]` — business logic, matching where the unit suite already concentrates — not `app/**`/`components/**`, since there's no `@testing-library/react` here; that UI layer is exercised by the Playwright suite instead. Excluded from the scope (and from the 80% denominator) for the same reason `tests/cross-account-isolation.supabase.test.ts` above is opt-in: `lib/**/supabase.ts` and `lib/supabase/**` (cloud-mode code needs a live Supabase instance to test meaningfully) and `lib/watcher.ts` (chokidar fs-watching orchestration — thin wiring over the already-unit-tested pure matching logic in `lib/videoMatch.ts`).
+
+**e2e tests** — Playwright, `playwright.config.ts`, `e2e/**/*.spec.ts`, Chromium only, run serially (`workers: 1`) since the whole suite shares one small fixture sqlite db and would otherwise race on the same lesson rows. Each spec is self-contained: state it depends on is set up via direct API calls (`page.request`/`request` fixture) rather than assuming another spec file ran first, and state it mutates is reset in `beforeEach`/`afterEach` (see `e2e/utils.ts`'s `resetFixtureLessons`).
+
+Isolation from real dev data: three env vars — `DB_PATH`, `LESSONS_MANIFEST_PATH`, `APP_CONFIG_PATH` — override the otherwise-hardcoded `data/app.db`/`data/lessons.yaml`/`data/config.yaml` paths (`lib/db.ts`/`lib/manifest.ts`/`lib/config.ts`; defaults unchanged when unset, so normal dev/Docker usage is unaffected). `playwright.config.ts`'s `webServer` sets all three to point at `e2e/fixtures/data/` (3 minimal lessons covering the Drive-embed, local-video, and no-source cases — see `e2e/fixtures/data/lessons.yaml`) and boots `next dev` on port 3100 (not 3000, so it doesn't collide with a dev server already running). `e2e/global-setup.ts` deletes any stale fixture db before each full run; `e2e/auth.setup.ts` logs in once and saves `storageState` to `e2e/.auth/user.json` (gitignored), reused by the `chromium` project — specs that need to test unauthenticated flows (`e2e/auth.spec.ts`) override it per-file with `test.use({ storageState: { cookies: [], origins: [] } })`.
+
+`npx playwright install --with-deps chromium` is a one-time local setup step (also run in CI) — not part of `npm install`, since the browser binary is large and shouldn't be pulled on every install.
 
 ### Lesson manifest (`data/lessons.yaml`)
 
