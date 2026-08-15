@@ -14,6 +14,12 @@ declare global {
 function createConnection(): Database.Database {
   fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
   const database = new Database(DB_PATH);
+  // `next build`'s page-data-collection step imports route modules across
+  // several parallel workers, each opening this same (possibly
+  // not-yet-existing) file — without a busy_timeout, concurrent schema
+  // init/WAL setup on a fresh db fails immediately with SQLITE_BUSY instead
+  // of waiting.
+  database.pragma("busy_timeout = 5000");
   database.pragma("journal_mode = WAL");
   database.pragma("foreign_keys = ON");
   return database;
