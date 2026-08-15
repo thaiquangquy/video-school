@@ -1,0 +1,16 @@
+# Fixture manifest for Playwright e2e tests — isolated from the real
+# data/lessons.yaml via LESSONS_MANIFEST_PATH (see playwright.config.ts).
+- id: e2e-drive-lesson
+  title: "E2E Drive Lesson"
+  subject: E2E
+  driveUrl: "https://drive.google.com/file/d/1a2b3c4d5e6f7g8h9i0j/view"
+  order: 1
+- id: e2e-local-lesson
+  title: "E2E Local Lesson"
+  subject: E2E
+  localPath: "sample.mp4"
+  order: 2
+- id: e2e-no-source-lesson
+  title: "E2E No Source Lesson"
+  subject: E2E
+  order: 3

@@ -1,0 +1,3 @@
+# Fixture app config for Playwright e2e tests — isolated from the real
+# data/config.yaml via APP_CONFIG_PATH (see playwright.config.ts).
+videosDir: "e2e/fixtures/videos"
