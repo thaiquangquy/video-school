@@ -27,5 +27,14 @@ test.describe("authentication", () => {
     await page.locator('button[type="submit"]').click();
     await page.waitForURL("/");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+
+    // Local mode is LAN-only plain HTTP, never HTTPS — a `Secure` cookie
+    // would be silently dropped by the browser on a real LAN IP (iPad PWA),
+    // even though it "works" here since Playwright runs against localhost,
+    // which browsers exempt from the secure-context requirement.
+    const cookies = await page.context().cookies();
+    const session = cookies.find((c) => c.name === "session");
+    expect(session).toBeDefined();
+    expect(session?.secure).toBe(false);
   });
 });

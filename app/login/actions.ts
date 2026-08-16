@@ -23,7 +23,7 @@ export async function signIn(_prevState: SignInState, formData: FormData): Promi
   const cookieStore = await cookies();
   cookieStore.set(COOKIE_NAME, createSessionCookieValue(), {
     httpOnly: true,
-    secure: true,
+    secure: false, // local mode is LAN-only plain HTTP, never HTTPS — see CLAUDE.md
     sameSite: "lax",
     path: "/",
   });
