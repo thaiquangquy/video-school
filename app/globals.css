@@ -68,6 +68,11 @@ a {
   position: sticky;
   top: 0;
   z-index: 10;
+  /* Installed as a standalone PWA (app/manifest.ts), viewport-fit: cover +
+     statusBarStyle: "black-translucent" draw content under the iOS status
+     bar/notch — push the sticky header below it. Resolves to 0 in a normal
+     browser tab. */
+  padding-top: env(safe-area-inset-top);
 }
 
 .site-header-inner {

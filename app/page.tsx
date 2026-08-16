@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getAllLessons, getContinueLearning } from "@/lib/lessons";
+import { getPreferences } from "@/lib/settings";
 import { LessonCard } from "@/components/LessonCard";
 
 // Reads live watch-progress state on every request — never statically
@@ -12,6 +13,7 @@ const UP_NEXT_FETCH_COUNT = 4;
 export default async function Home() {
   const allLessons = await getAllLessons();
   const { continueLearning, upNext } = await getContinueLearning(undefined, UP_NEXT_FETCH_COUNT);
+  const { displayName } = await getPreferences();
 
   const startHere = !continueLearning ? (upNext[0] ?? null) : null;
   const upNextDisplay = continueLearning ? upNext.slice(0, 3) : upNext.slice(1, 4);
@@ -26,6 +28,10 @@ export default async function Home() {
 
   return (
     <div>
+      <p className="muted" style={{ marginBottom: 16 }}>
+        {displayName ? `Welcome back, ${displayName}!` : "Welcome back!"}
+      </p>
+
       {continueLearning ? (
         <div className="card" style={{ padding: 28 }}>
           <div className="muted" style={{ fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 10 }}>

@@ -49,7 +49,7 @@ export default function RootLayout({
             <nav className="site-nav">
               <Link href="/">Home</Link>
               <Link href="/library">Library</Link>
-              <Link href="/history">History</Link>
+              <Link href="/account">Account</Link>
             </nav>
           </div>
         </header>

@@ -68,6 +68,14 @@ const SCHEMA_SQL = `
   CREATE INDEX IF NOT EXISTS idx_watch_events_lesson ON watch_events(lesson_id);
   CREATE INDEX IF NOT EXISTS idx_watch_events_started ON watch_events(started_at);
   CREATE INDEX IF NOT EXISTS idx_watch_progress_status ON watch_progress(status);
+
+  -- Single shared row (id is always 1) — local mode has one household login,
+  -- not per-user accounts, so preferences like display name are app-wide
+  -- rather than needing a users table.
+  CREATE TABLE IF NOT EXISTS app_settings (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    display_name TEXT
+  );
 `;
 
 /** Creates tables if they don't exist. Idempotent — safe to call on every server start. */
