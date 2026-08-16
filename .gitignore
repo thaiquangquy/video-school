@@ -61,3 +61,6 @@ next-env.d.ts
 /playwright-report/
 /test-results/
 /blob-report/
+.mcp.json
+.cv
+.claude
