@@ -15,6 +15,51 @@ Open [http://localhost:3000](http://localhost:3000) on the machine running the s
 
 `npm run build && npm run start` runs the same app in production mode, same binding.
 
+## Dev vs. stable (this household's actual setup)
+
+This repo is checked out twice on this machine, so active development never risks
+breaking what the family is using:
+
+- **This directory** (`main` branch) — what the family actually uses (stable/
+  production), running a built `next start` at `http://localhost:23000` (and
+  `http://<lan-ip>:23000` on the WiFi, same reachability model as above).
+  `.env` (not committed) holds `DATA_BACKEND=sqlite`, `APP_PASSWORD`, and
+  `SESSION_SECRET` for this deployment — set up once and left alone; changing
+  the household password means editing that file and restarting. `data/app.db`
+  here is the real, long-running household history — never point test/dev
+  tooling at it.
+- **`../video-school-dev`** (a `git worktree` checked out to the `dev`
+  branch) — active development, `npm run dev` here. A genuinely separate
+  directory — its own `node_modules`, `.next` build, and `data/` (own sqlite
+  db; dev's testing never touches the family's real data) — so `next dev`'s
+  live rebuilds there can't collide with the `next start` process serving the
+  family from here. `data/config.yaml`'s `videosDir` is an absolute path, so
+  both checkouts resolve the same real video files.
+
+**Promote dev to stable**, once you're satisfied a set of changes is tested and
+ready to ship — run this in **this** directory (`main`):
+
+```bash
+git merge --ff-only dev   # fails loudly if this isn't a fast-forward
+npm ci                     # only needed if package.json changed
+npm run build
+```
+
+(The `"next start" does not work with "output: standalone"` warning during the
+build is expected here and harmless — that config is for the Docker image
+below; a plain `next start` still runs the app correctly, just without that
+optimization.)
+
+**Restart the running stable server** after promoting+building:
+
+```bash
+lsof -nP -iTCP:23000 -sTCP:LISTEN   # find the current server's PID
+kill <pid>
+
+nohup npx next start -H 0.0.0.0 -p 23000 > server.log 2>&1 &
+disown
+```
+
 ## Running with Docker
 
 One image supports both data backends (`sqlite` local mode, `supabase` cloud mode —
