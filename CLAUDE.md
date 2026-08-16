@@ -17,6 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run test:e2e:ui` — same, in Playwright's interactive UI mode (useful while writing/debugging a spec)
 - `npx tsc --noEmit` — typecheck
 - Docker: one image, two modes via `DATA_BACKEND` (`sqlite` default or `supabase`) — but `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY` must also be passed as `--build-arg` at build time (they're inlined into the JS bundle by `next build`), unlike the other mode-selection vars which are pure `docker run -e` runtime vars. Exact `docker build`/`docker run` invocations for both modes: README's "Running with Docker" section (kept there, not duplicated here, to avoid drift). The bind-mounted `data/` volume persists `data/lessons.yaml` edits, `data/videos/`, and (local mode only) the sqlite db across rebuilds; without it the container falls back to the `data/` baked into the image.
+- Dev vs. stable: this repo is checked out twice on the household machine — `main` branch (this directory when it's the primary checkout) is the stable/production build the family actually uses at port 23000; a sibling `../video-school-dev` worktree on a `dev` branch is where active development happens (`npm run dev`, port 3000), promoted to `main` only when tested and ready. Full promotion/restart commands: README's "Dev vs. stable" section.
 
 ## Using `cv` (CV-Git)
 
